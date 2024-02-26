@@ -14,11 +14,11 @@ pub fn r_pentomino() -> Vec<bool> {
         field.push(false);
     }
 
-    field[convert(50, 50)] = true;
-    field[convert(51, 50)] = true;
-    field[convert(50, 51)] = true;
-    field[convert(49, 51)] = true;
-    field[convert(50, 52)] = true;
+    field[convert(250, 150)] = true;
+    field[convert(251, 150)] = true;
+    field[convert(250, 151)] = true;
+    field[convert(249, 151)] = true;
+    field[convert(250, 152)] = true;
     field
 }
 pub fn square() -> Vec<bool> {

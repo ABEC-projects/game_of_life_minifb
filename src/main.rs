@@ -27,7 +27,6 @@ fn main() {
         game_of_life::game_of_life::Options::default(),
     );
     
-    let mut buffer: Vec<u32> = vec![0; WIDTH*HEIGHT];
 
     let mut window = Window::new(
         "Test - ESC to exit",
@@ -44,7 +43,7 @@ fn main() {
     let mut scale_factor = 1.;
     let mut prev_mouse_pos = (0., 0.);
     let mut offset = (0., 0.);
-    let mut screen = ScreenImage::new(buffer, *game.get_field().get_width(), *game.get_field().get_height());
+    let mut screen = ScreenImage::new(vec![0; WIDTH*HEIGHT], *game.get_field().get_width(), *game.get_field().get_height());
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let cur_mouse_pos: (f32, f32) =  window.get_mouse_pos(minifb::MouseMode::Clamp).unwrap();
@@ -136,6 +135,11 @@ fn main() {
         fn get_vector(&self) -> &Vec<u32>{
             &self.vector
         }
+        fn new_clear(&self) -> Self {
+            Self::new(vec![0; self.width()*self.height()], 
+                self.width, 
+                self.height)
+        }
 
 
     }
@@ -158,6 +162,7 @@ mod scale{
         fn from_rgba(color: u32) -> Self::Stored;
         fn copy(input: &Self::Stored) -> Self::Stored;
         fn get_vector(&self) -> &Vec<Self::Stored>;
+        fn new_clear(&self) -> Self;
 
         fn get_bilin(&self, x: f32, y: f32) -> Self::Stored{
             let lin_inter = |v1: &Self::Stored, v2: &Self::Stored, factor: f32| -> Self::Stored{
@@ -204,6 +209,9 @@ mod scale{
                 },
             }
         }
+        fn get_nearest(&self, x: f32, y: f32) -> Self::Stored{
+            Self::copy(self.index(x.round() as usize, y.round() as usize))
+        }
     }
 
     pub fn _crop (field: &Field, factor: f64, offset: (usize, usize)) -> Field{
@@ -231,32 +239,39 @@ mod scale{
         let mut j: f32 = offset.1;
         let mut x: usize = 0;
         let mut y: usize = 0;
-        while j < height_bound{
-            while i < width_bound - factor.recip()/2.{
-                *field.index_mut(x, y) = field.get_bilin(i, j);
+        let mut buff = field.new_clear();
+        while y < field.height(){
+            while x < field.width(){
+                *buff.index_mut(x, y) = field.get_bilin(i, j);
                 i += factor.recip();
                 x += 1;
             }
-            i = 0.0;
+            i = offset.0;
             x = 0;
             j += factor.recip();
             y += 1;
         }
+        *field = buff;
     }
-    pub fn zoom_nearest(field: &Field, factor: f32, offset: (f32, f32)) -> Vec<f32>{
-        let mut vector: Vec<f32> = Vec::new();
-        let width_bound = (*field.get_width() as f32/factor+offset.0).min(*field.get_width() as f32);
-        let height_bound = (*field.get_height() as f32/factor+offset.1).min(*field.get_height() as f32);
-        let mut x: f32 = offset.0;
-        let mut y: f32 = offset.1;
-        while y < height_bound{
-            while x < width_bound - factor.recip()/2.{
-                vector.push(if field[(x.round().clamp(0., width_bound-1.) as usize, y.round().clamp(0., height_bound-1.) as usize)] {1.} else {0.});
-                x += factor.recip();
+     pub fn zoom_nearest_self (field: &mut impl ScalableImage , factor: f32, offset: (f32, f32)){
+        let mut i: f32 = offset.0;
+        let mut j: f32 = offset.1;
+        let mut x: usize = 0;
+        let mut y: usize = 0;
+        let mut buff = field.new_clear();
+
+        while y < field.height(){
+            while x < field.width(){
+                *buff.index_mut(x, y) = field.get_nearest(i, j);
+                i += factor.recip();
+                x += 1;
             }
-            x = offset.0;
-            y += factor.recip();
+            println!("{} {}", i, j);
+            i = offset.0;
+            x = 0;
+            j += factor.recip();
+            y += 1;
         }
-        vector
+        *field = buff;
     }
 }
