@@ -3,51 +3,71 @@ use std::{
 #[derive (Clone)]
 pub struct Field{
     pub vec: Vec<bool>,
-    pub width: usize,
-    pub hight: usize
+    width: usize,
+    height: usize
 }
 impl Field{
-    pub fn new(vec: Vec<bool>, width: usize, hight: usize) -> Self{
-        Field {vec, width, hight}
+    pub fn new(vec: Vec<bool>, width: usize, height: usize) -> Self{
+        Field {vec, width, height}
     }
-    pub fn get_bilin(&self, cords: (f32, f32)) -> f32{
-        let (x, y) = cords;
-        let to_f32 = |a: bool| -> f32{
-            if a {1.0} else {0.0}
-        };
-        let x1 = x.floor() as usize;
-        let x2: Option<usize> = if x+1. < self.width as f32 {Option::Some((x.floor()+1.) as usize)} else {Option::None};
-        let y1 = y.floor() as usize;
-        let y2: Option<usize> = if y+1. < self.hight as f32 {Option::Some((y.floor()+1.) as usize)} else {Option::None};
-        match x2{
-            Some(x2) => {
-                let v1 = to_f32(self[(x1, y1)]) * (1.-x.fract()) +  to_f32(self[(x2, y1)]) as f32 * (x.fract());
-                match y2 {
-                    Some(y2) => {
-                        let v2 = to_f32(self[(x1, y2)]) * (1.-x.fract()) +  to_f32(self[(x2, y2)]) * (x.fract());
-                        v1 * (1.-y.fract()) + v2 * (y.fract())
-                    },
-                    None => {
-                        v1
-                    },
-                }
-            },
-            None => {
-                let v1 = to_f32(self[(x1, y1)]);
-                
-                match y2 {
-                    Some(y2) => {
-                        let v2 = to_f32(self[(x1, y2)]);
-                        v1 * (1.-y.fract()) + v2 * (y.fract())
-                    },
-                    None => {
-                        v1
-                    },
-                }
-            },
-        }
-        
+
+    pub fn get_vec(&self) -> &Vec<bool> {
+        &self.vec
     }
+    pub fn get_vec_mut(&mut self) -> &mut Vec<bool> {
+        &mut self.vec
+    }
+    pub fn get_width(&self) -> &usize {
+        &self.width
+    }
+    pub fn get_width_mut(&mut self) -> &mut usize {
+        &mut self.width
+    }
+    pub fn get_height(&self) -> &usize {
+        &self.height
+    }
+    pub fn get_height_mut(&mut self) -> &mut usize {
+        &mut self.height
+    }
+
+    //pub fn get_bilin(&self, cords: (f32, f32)) -> f32{
+    //    let (x, y) = cords;
+    //    let to_f32 = |a: bool| -> f32{
+    //        if a {1.0} else {0.0}
+    //    };
+    //    let x1 = x.floor() as usize;
+    //    let x2: Option<usize> = if x+1. < self.width as f32 {Option::Some((x.floor()+1.) as usize)} else {Option::None};
+    //    let y1 = y.floor() as usize;
+    //    let y2: Option<usize> = if y+1. < self.height as f32 {Option::Some((y.floor()+1.) as usize)} else {Option::None};
+    //    match x2{
+    //        Some(x2) => {
+    //            let v1 = to_f32(self[(x1, y1)]) * (1.-x.fract()) +  to_f32(self[(x2, y1)]) as f32 * (x.fract());
+    //            match y2 {
+    //                Some(y2) => {
+    //                    let v2 = to_f32(self[(x1, y2)]) * (1.-x.fract()) +  to_f32(self[(x2, y2)]) * (x.fract());
+    //                    v1 * (1.-y.fract()) + v2 * (y.fract())
+    //                },
+    //                None => {
+    //                    v1
+    //                },
+    //            }
+    //        },
+    //        None => {
+    //            let v1 = to_f32(self[(x1, y1)]);
+    //            
+    //            match y2 {
+    //                Some(y2) => {
+    //                    let v2 = to_f32(self[(x1, y2)]);
+    //                    v1 * (1.-y.fract()) + v2 * (y.fract())
+    //                },
+    //                None => {
+    //                    v1
+    //                },
+    //            }
+    //        },
+    //    }
+    //    
+    //}
 }
 impl Index<(usize, usize)> for Field{
     type Output = bool;
@@ -80,7 +100,7 @@ impl GameInstance {
         let mut new_field = self.field.clone();
         let len_x = self.width();
         for x in 0..len_x {
-            let len_y = self.hight();
+            let len_y = self.height();
             for y in 0..len_y {
                 let mut counter: i8 = 0;
                 for offset in [
@@ -128,8 +148,8 @@ impl GameInstance {
         self.field.width
     }
 
-    pub fn hight(&self) -> usize {
-        self.field.hight
+    pub fn height(&self) -> usize {
+        self.field.height
     }
 
 
