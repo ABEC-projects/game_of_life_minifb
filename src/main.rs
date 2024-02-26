@@ -63,8 +63,9 @@ fn main() {
 
         offset.0 = offset.0.clamp(0., WIDTH as f32 - WIDTH as f32 / scale_factor);
         offset.1 = offset.1.clamp(0., HEIGHT as f32 - HEIGHT as f32 / scale_factor);
+
         screen.set_vector(game.get_field().get_vec().iter().map(|x: &bool| if *x {u32::MAX} else {0}).collect());
-        scale::zoom_bilin_self(&mut screen, scale_factor.into(), offset);
+        scale::zoom_nearest_self(&mut screen, scale_factor.into(), offset);
         game.new_generation();
         prev_mouse_pos = window.get_mouse_pos(minifb::MouseMode::Clamp).unwrap();
         window.update_with_buffer(&screen.get_vector().to_vec(), WIDTH, HEIGHT).unwrap();
@@ -122,11 +123,14 @@ fn main() {
             self.height
         }
 
-        fn to_rgba(color: &u32) -> u32 {
-            *color
+        fn to_rgba(color: &u32) -> u128 {
+            let color = *color as u128;
+            let (r, g, b, a) = ( (color & 255) as u128, (color >> 8 & 255) as u128, (color >> 16 & 255) as u128, (color >> 24 & 255) as u128);
+            (a << 96) | (r << 64) | (g << 32) | b
         }
-        fn from_rgba(color: u32) -> u32 {
-            color
+        fn from_rgba(color: u128) -> u32 {
+            let (r, g, b, a) = ( (color & 255) as u32, (color >> 32 & 255) as u32, (color >> 64 & 255) as u32, (color >> 96 & 255) as u32);
+            (a << 24) | (r << 16) | (g << 8) | b
         }
 
         fn copy(input: &Self::Stored) -> Self::Stored {
@@ -158,8 +162,8 @@ mod scale{
         fn index_mut(&mut self, x: usize, y: usize) -> &mut Self::Stored;
         fn width(&self) -> usize;
         fn height(&self) -> usize;
-        fn to_rgba(color: &Self::Stored) -> u32;
-        fn from_rgba(color: u32) -> Self::Stored;
+        fn to_rgba(color: &Self::Stored) -> u128;
+        fn from_rgba(color: u128) -> Self::Stored;
         fn copy(input: &Self::Stored) -> Self::Stored;
         fn get_vector(&self) -> &Vec<Self::Stored>;
         fn new_clear(&self) -> Self;
@@ -168,13 +172,14 @@ mod scale{
             let lin_inter = |v1: &Self::Stored, v2: &Self::Stored, factor: f32| -> Self::Stored{
                 let v1 = Self::to_rgba(v1);
                 let v2 = Self::to_rgba(v2);
-                let (r1, g1, b1, a1) = ( (v1 & 255) as u8, (v1 >> 8 & 255) as u8, (v1 >> 16 & 255) as u8, (v1 >> 24 & 255) as u8);
-                let (r2, g2, b2, a2) = ( (v2 & 255) as u8, (v2 >> 8 & 255) as u8, (v2 >> 16 & 255) as u8, (v1 >> 24 & 255) as u8);
-                let (r, g, b, a) = ((r1 as f32 * (1.-factor) + r2 as f32 * factor) as u32,
-                (g1 as f32 * (1.-factor) + g2 as f32 * factor) as u32,
-                (b1 as f32 * (1.-factor) + b2 as f32 * factor) as u32,
-                (a1 as f32 * (1.-factor) + a2 as f32 * factor) as u32);
-                Self::from_rgba((a << 24) | (r << 16) | (g << 8) | b)
+                let (r1, g1, b1, a1) = ( (v1 & 255) as u32, (v1 >> 32 & 255) as u32, (v1 >> 64 & 255) as u32, (v1 >> 96 & 255) as u32);   
+                let (r2, g2, b2, a2) = ( (v2 & 255) as u32, (v2 >> 32 & 255) as u32, (v2 >> 64 & 255) as u32, (v1 >> 96 & 255) as u32);   
+                let (r, g, b, a) = (
+                    (r1 as f64 * (1.-factor) as f64 + r2 as f64 * factor as f64) as u128,
+                    (g1 as f64 * (1.-factor) as f64 + g2 as f64 * factor as f64) as u128,
+                    (b1 as f64 * (1.-factor) as f64 + b2 as f64 * factor as f64) as u128,
+                    (a1 as f64 * (1.-factor) as f64 + a2 as f64 * factor as f64) as u128);
+                Self::from_rgba((a << 96) | (r << 64) | (g << 32) | b)
             };
 
             let x1 = x.floor() as usize;
@@ -210,7 +215,7 @@ mod scale{
             }
         }
         fn get_nearest(&self, x: f32, y: f32) -> Self::Stored{
-            Self::copy(self.index(x.round() as usize, y.round() as usize))
+            Self::copy(self.index(x.round().clamp(0., self.width() as f32 - 1.) as usize, y.round().clamp(0., self.height() as f32 - 1.) as usize))
         }
     }
 
@@ -233,13 +238,12 @@ mod scale{
         Field::new(vector, width_bound-offset.0, height_bound-offset.1)
     }
     pub fn zoom_bilin_self (field: &mut impl ScalableImage , factor: f32, offset: (f32, f32)){
-        let width_bound = (field.width() as f32/factor+offset.0).min(field.width() as f32);
-        let height_bound = (field.height() as f32/factor+offset.1).min(field.height() as f32);
         let mut i: f32 = offset.0;
         let mut j: f32 = offset.1;
         let mut x: usize = 0;
         let mut y: usize = 0;
         let mut buff = field.new_clear();
+
         while y < field.height(){
             while x < field.width(){
                 *buff.index_mut(x, y) = field.get_bilin(i, j);
@@ -266,7 +270,6 @@ mod scale{
                 i += factor.recip();
                 x += 1;
             }
-            println!("{} {}", i, j);
             i = offset.0;
             x = 0;
             j += factor.recip();
@@ -274,4 +277,5 @@ mod scale{
         }
         *field = buff;
     }
+
 }
