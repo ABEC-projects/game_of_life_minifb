@@ -30,44 +30,6 @@ impl Field{
         &mut self.height
     }
 
-    //pub fn get_bilin(&self, cords: (f32, f32)) -> f32{
-    //    let (x, y) = cords;
-    //    let to_f32 = |a: bool| -> f32{
-    //        if a {1.0} else {0.0}
-    //    };
-    //    let x1 = x.floor() as usize;
-    //    let x2: Option<usize> = if x+1. < self.width as f32 {Option::Some((x.floor()+1.) as usize)} else {Option::None};
-    //    let y1 = y.floor() as usize;
-    //    let y2: Option<usize> = if y+1. < self.height as f32 {Option::Some((y.floor()+1.) as usize)} else {Option::None};
-    //    match x2{
-    //        Some(x2) => {
-    //            let v1 = to_f32(self[(x1, y1)]) * (1.-x.fract()) +  to_f32(self[(x2, y1)]) as f32 * (x.fract());
-    //            match y2 {
-    //                Some(y2) => {
-    //                    let v2 = to_f32(self[(x1, y2)]) * (1.-x.fract()) +  to_f32(self[(x2, y2)]) * (x.fract());
-    //                    v1 * (1.-y.fract()) + v2 * (y.fract())
-    //                },
-    //                None => {
-    //                    v1
-    //                },
-    //            }
-    //        },
-    //        None => {
-    //            let v1 = to_f32(self[(x1, y1)]);
-    //            
-    //            match y2 {
-    //                Some(y2) => {
-    //                    let v2 = to_f32(self[(x1, y2)]);
-    //                    v1 * (1.-y.fract()) + v2 * (y.fract())
-    //                },
-    //                None => {
-    //                    v1
-    //                },
-    //            }
-    //        },
-    //    }
-    //    
-    //}
 }
 impl Index<(usize, usize)> for Field{
     type Output = bool;

@@ -1,26 +1,19 @@
-use std::usize;
+mod vector_geom;
 
+use std::usize;
 use minifb::{Key, Window, WindowOptions};
+use vector_geom::Vec2D;
 
 const WIDTH: usize = 640;
 const HEIGHT: usize = 360;
 const WINDOW_SCALE: f32 = 2.;
 const ZOOM_SPEED: f32 = 0.2;
-fn from_u8_rgb(r: u8, g: u8, b: u8) -> u32 {
-    let (r, g, b) = (r as u32, g as u32, b as u32);
-    (r << 16) | (g << 8) | b
-}
-fn _gray_scale(br: f32) -> u32{
-    from_u8_rgb((u8::MAX as f32 * br) as u8, (u8::MAX as f32 * br) as u8, (u8::MAX as f32 * br) as u8)
-}
 
-fn to_rgb_tuple (c: u32) -> (u8, u8, u8){
-    ( (c & 255) as u8, (c >> 8 & 255) as u8, (c >> 16 & 255) as u8)
+fn from_local(cords: Vec2D, offset: Vec2D, scale: f32 )-> Vec2D{
+    Vec2D::new(((cords.x + offset.x)/(WINDOW_SCALE*scale), (cords.y + offset.y)/(WINDOW_SCALE*scale)))
 }
 
 fn main() {
-    let tt = to_rgb_tuple(from_u8_rgb(255, 20, 255));
-    println!("{} {} {}", tt.0, tt.1, tt.2);
     let mut game = game_of_life::game_of_life::GameInstance::new(
         game_of_life::field_presets::r_pentomino(),
         (WIDTH, HEIGHT),
@@ -38,41 +31,89 @@ fn main() {
         panic!("{}", e);
     });
 
+
     // Limit to max ~60 fps update rate
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
     let mut scale_factor = 1.;
-    let mut prev_mouse_pos = (0., 0.);
-    let mut offset = (0., 0.);
+    let mut prev_mouse_pos: Vec2D = Vec2D::new((0., 0.));
+    let mut offset: Vec2D = Vec2D::new((0., 0.));
     let mut screen = ScreenImage::new(vec![0; WIDTH*HEIGHT], *game.get_field().get_width(), *game.get_field().get_height());
+    let mut pause = true;
+
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        let cur_mouse_pos: (f32, f32) =  window.get_mouse_pos(minifb::MouseMode::Clamp).unwrap();
+        //Pausing
+        if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No){
+            pause = !pause;
+        }
+        
+        let cur_mouse_pos: Vec2D =  Vec2D::new(window.get_mouse_pos(minifb::MouseMode::Clamp).unwrap());
         let wheel_movement = window.get_scroll_wheel().unwrap_or_else(|| -> (f32, f32) {(0., 0.)});
-        let old_size = (WIDTH as f32*WINDOW_SCALE / scale_factor, HEIGHT as f32*WINDOW_SCALE / scale_factor);
+        let old_size = Vec2D::new((WIDTH as f32*WINDOW_SCALE / scale_factor, HEIGHT as f32*WINDOW_SCALE / scale_factor));
         scale_factor += wheel_movement.1*ZOOM_SPEED;
         scale_factor = scale_factor.clamp(1., 20.);
-        let new_size = (WIDTH as f32*WINDOW_SCALE / scale_factor, HEIGHT as f32*WINDOW_SCALE / scale_factor);
+        let new_size = Vec2D::new((WIDTH as f32*WINDOW_SCALE / scale_factor, HEIGHT as f32*WINDOW_SCALE / scale_factor));
 
-        offset.0 -= (new_size.0-old_size.0)*cur_mouse_pos.0/(WIDTH as f32*WINDOW_SCALE)/2.;
-        offset.1 -= (new_size.1-old_size.1)*cur_mouse_pos.1/(HEIGHT as f32*WINDOW_SCALE)/2.;
-
+        offset.x -= (new_size.x-old_size.x)*cur_mouse_pos.x/(WIDTH as f32*WINDOW_SCALE)/2.;
+        offset.y -= (new_size.y-old_size.y)*cur_mouse_pos.y/(HEIGHT as f32*WINDOW_SCALE)/2.;
+        
+        // Camera movement
+        if window.get_mouse_down(minifb::MouseButton::Middle){
+            offset -= (cur_mouse_pos - prev_mouse_pos).div(scale_factor*WINDOW_SCALE);
+        }
+        // Pixel Drawing
         if window.get_mouse_down(minifb::MouseButton::Left){
-            offset.0 -= (cur_mouse_pos.0 - prev_mouse_pos.0)/scale_factor/WINDOW_SCALE;
-            offset.1 -=  (cur_mouse_pos.1 - prev_mouse_pos.1)/scale_factor/WINDOW_SCALE;
+            let mut from: Vec2D = from_local(prev_mouse_pos, Vec2D::ZERO, scale_factor);
+            let mut to: Vec2D = from_local(cur_mouse_pos, Vec2D::ZERO, scale_factor);
+            let x_inverted = if to.x < from.x {
+                to.x = 2.*from.x-to.x;
+                true
+            }else{
+                false
+            };
+            let y_inverted = if to.y < from.y {
+                to.y = 2.*from.y-to.x;
+                true
+            }else{
+                false
+            };
+            let speed_inverted = if (to.x-from.x) < (to.y - from.y){
+                let buff = to;
+                to = from;
+                from = buff;
+                true
+            }else{ false };
+            let speed = (to.y-from.y)/(to.x-from.x);
+            let mut x = from.x.clamp(0., WIDTH as f32 -1.);
+            while x <= to.x{
+                let mut y_ = (speed*(x-from.x)+from.y).clamp(0., HEIGHT as f32 - 1.);
+                let mut x_ = x;
+                if x_inverted {x_ = 2.*from.x-x_;}
+                if y_inverted {y_ = 2.*from.y-y_;}
+                if speed_inverted {
+                    x_ += y_;
+                    y_ = x_ - y_;
+                    x_ = x_ - y_;
+                }
+                game.get_field_mut()[((x_+offset.x+0.5)as usize, (y_+offset.y+0.5)as usize)] = true;
+                x += 1.;
+            };
         }
 
-        offset.0 = offset.0.clamp(0., WIDTH as f32 - WIDTH as f32 / scale_factor);
-        offset.1 = offset.1.clamp(0., HEIGHT as f32 - HEIGHT as f32 / scale_factor);
+        offset.x = offset.x.clamp(0., WIDTH as f32 - WIDTH as f32 / scale_factor);
+        offset.y = offset.y.clamp(0., HEIGHT as f32 - HEIGHT as f32 / scale_factor);
 
         screen.set_vector(game.get_field().get_vec().iter().map(|x: &bool| if *x {u32::MAX} else {0}).collect());
-        scale::zoom_nearest_self(&mut screen, scale_factor.into(), offset);
-        game.new_generation();
-        prev_mouse_pos = window.get_mouse_pos(minifb::MouseMode::Clamp).unwrap();
+        scale::zoom_nearest_self(&mut screen, scale_factor.into(), offset.floor().get_tuple());
+        if !pause{
+            game.new_generation();
+        }
+        prev_mouse_pos = Vec2D::new(window.get_mouse_pos(minifb::MouseMode::Clamp).unwrap());
         window.update_with_buffer(&screen.get_vector().to_vec(), WIDTH, HEIGHT).unwrap();
 
     }
     
-    
+
     struct ScreenImage{
         vector: Vec<u32>,
         width: usize,
@@ -92,6 +133,7 @@ fn main() {
         fn set_vector(&mut self, new: Vec<u32>){
             self.vector = new;
         }
+
     }
     impl std::ops::Index<(usize, usize)> for ScreenImage{
         type Output = u32;
