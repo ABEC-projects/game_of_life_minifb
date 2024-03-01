@@ -82,7 +82,7 @@ fn main() {
             if !invert_x_y{
                 let  speed = (to.y-from.y)/(to.x-from.x);
                 if speed.is_nan() {
-                    game.get_field_mut()[((to.x + offset.x).round() as usize, (to.y + offset.y).round() as usize)] = true;
+                    game.get_field_mut()[((to.x.round() + offset.x) as usize, (to.y.round() + offset.y) as usize)] = true;
                 }else{
                     let mut x = from.x.clamp(0., WIDTH as f32 -1.);
                     while x <= to.x {
@@ -92,7 +92,7 @@ fn main() {
                         if y_inverted {y_ = 2.*from.y-y_;}
                         y_ = y_.clamp(0., HEIGHT as f32 - 1. - offset.y);
                         x_ = x_.clamp(0., WIDTH as f32 - 1. - offset.x);
-                        game.get_field_mut()[((x_+offset.x).round() as usize, (y_+offset.y).round() as usize)] = true;
+                        game.get_field_mut()[((x_.round()+offset.x) as usize, (y_.round() + offset.y) as usize)] = true;
                         x += 1.;
                     };
                 }
@@ -100,7 +100,7 @@ fn main() {
                 let speed = (to.x-from.x)/(to.y-from.y);
                 let mut y = from.y.clamp(0., HEIGHT as f32 - 1.);
                 if speed.is_nan() {
-                    game.get_field_mut()[((to.x + offset.x).round() as usize, (to.y + offset.y).round() as usize)] = true;
+                    game.get_field_mut()[((to.x.round() + offset.x) as usize, (to.y.round() + offset.y) as usize)] = true;
                 }else{
                     while y <= to.y {
                         let mut x_ = speed*(y-from.y)+from.x;
@@ -110,7 +110,7 @@ fn main() {
                         x_ = x_.clamp(0., WIDTH as f32 - 1. - offset.x);
                         y_ = y_.clamp(0., HEIGHT as f32 - 1. - offset.y);
 
-                        game.get_field_mut()[((x_+offset.x).round() as usize, (y_+offset.y).round() as usize)] = true;
+                        game.get_field_mut()[((x_.round()+offset.x) as usize, (y_.round()+offset.y) as usize)] = true;
                         y += 1.;
                     };
                 }
