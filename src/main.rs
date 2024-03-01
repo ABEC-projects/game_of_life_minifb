@@ -1,6 +1,6 @@
 mod vector_geom;
 
-use std::usize;
+
 use minifb::{Key, Window, WindowOptions};
 use vector_geom::Vec2D;
 
@@ -63,7 +63,7 @@ fn main() {
         }
         // Pixel Drawing
         if window.get_mouse_down(minifb::MouseButton::Left){
-            let mut from: Vec2D = from_local(prev_mouse_pos, Vec2D::ZERO, scale_factor);
+            let from: Vec2D = from_local(prev_mouse_pos, Vec2D::ZERO, scale_factor);
             let mut to: Vec2D = from_local(cur_mouse_pos, Vec2D::ZERO, scale_factor);
             let x_inverted = if to.x < from.x {
                 to.x = 2.*from.x-to.x;
@@ -72,32 +72,48 @@ fn main() {
                 false
             };
             let y_inverted = if to.y < from.y {
-                to.y = 2.*from.y-to.x;
+                to.y = 2.*from.y-to.y;
                 true
             }else{
                 false
             };
-            let speed_inverted = if (to.x-from.x) < (to.y - from.y){
-                let buff = to;
-                to = from;
-                from = buff;
-                true
-            }else{ false };
-            let speed = (to.y-from.y)/(to.x-from.x);
-            let mut x = from.x.clamp(0., WIDTH as f32 -1.);
-            while x <= to.x{
-                let mut y_ = (speed*(x-from.x)+from.y).clamp(0., HEIGHT as f32 - 1.);
-                let mut x_ = x;
-                if x_inverted {x_ = 2.*from.x-x_;}
-                if y_inverted {y_ = 2.*from.y-y_;}
-                if speed_inverted {
-                    x_ += y_;
-                    y_ = x_ - y_;
-                    x_ = x_ - y_;
-                }
-                game.get_field_mut()[((x_+offset.x+0.5)as usize, (y_+offset.y+0.5)as usize)] = true;
-                x += 1.;
-            };
+            let invert_x_y= (to.x-from.x).abs() < (to.y - from.y).abs();
+
+            if !invert_x_y{
+            let  speed = (to.y-from.y)/(to.x-from.x);
+                let mut x = from.x.clamp(0., WIDTH as f32 -1.);
+                while x <= to.x {
+                    let mut  y_ = speed*(x-from.x)+from.y;
+                    let mut x_ = x;
+                    if speed.is_nan() {
+                        game.get_field_mut()[((to.x + offset.x) as usize, (to.y + offset.y) as usize)] = true;
+                        break;
+                    }
+                    if x_inverted {x_ = 2.*from.x-x_;}
+                    if y_inverted {y_ = 2.*from.y-y_;}
+                    y_ = y_.clamp(0., HEIGHT as f32 - 1. - offset.y);
+                    x_ = x_.clamp(0., WIDTH as f32 - 1. - offset.x);
+                    game.get_field_mut()[((x_+offset.x)as usize, (y_+offset.y)as usize)] = true;
+                    x += 1.;
+                };
+            }else{
+                let speed = (to.x-from.x)/(to.y-from.y);
+                let mut y = from.y.clamp(0., HEIGHT as f32 - 1.);
+                while y <= to.y {
+                    let mut x_ = speed*(y-from.y)+from.x;
+                    let mut y_ = y;
+                    if speed.is_nan() {
+                        game.get_field_mut()[((to.x + offset.x) as usize, (to.y + offset.y) as usize)] = true;
+                        break;
+                    }
+                    if x_inverted {x_ = 2.*from.x-x_;}
+                    if y_inverted {y_ = 2.*from.y-y_;}
+                    x_ = x_.clamp(0., WIDTH as f32 - 1. - offset.x);
+                    y_ = y_.clamp(0., HEIGHT as f32 - 1. - offset.y);
+                    game.get_field_mut()[((x_+offset.x)as usize, (y_+offset.y)as usize)] = true;
+                    y += 1.;
+                };
+            }
         }
 
         offset.x = offset.x.clamp(0., WIDTH as f32 - WIDTH as f32 / scale_factor);
