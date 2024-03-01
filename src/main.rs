@@ -15,7 +15,7 @@ fn from_local(cords: Vec2D, offset: Vec2D, scale: f32 )-> Vec2D{
 
 fn main() {
     let mut game = game_of_life::game_of_life::GameInstance::new(
-        game_of_life::field_presets::r_pentomino(),
+        vec![false;HEIGHT*WIDTH],
         (WIDTH, HEIGHT),
         game_of_life::game_of_life::Options::default(),
     );
@@ -80,39 +80,40 @@ fn main() {
             let invert_x_y= (to.x-from.x).abs() < (to.y - from.y).abs();
 
             if !invert_x_y{
-            let  speed = (to.y-from.y)/(to.x-from.x);
-                let mut x = from.x.clamp(0., WIDTH as f32 -1.);
-                while x <= to.x {
-                    let mut  y_ = speed*(x-from.x)+from.y;
-                    let mut x_ = x;
-                    if speed.is_nan() {
-                        game.get_field_mut()[((to.x + offset.x) as usize, (to.y + offset.y) as usize)] = true;
-                        break;
-                    }
-                    if x_inverted {x_ = 2.*from.x-x_;}
-                    if y_inverted {y_ = 2.*from.y-y_;}
-                    y_ = y_.clamp(0., HEIGHT as f32 - 1. - offset.y);
-                    x_ = x_.clamp(0., WIDTH as f32 - 1. - offset.x);
-                    game.get_field_mut()[((x_+offset.x)as usize, (y_+offset.y)as usize)] = true;
-                    x += 1.;
-                };
+                let  speed = (to.y-from.y)/(to.x-from.x);
+                if speed.is_nan() {
+                    game.get_field_mut()[((to.x + offset.x).round() as usize, (to.y + offset.y).round() as usize)] = true;
+                }else{
+                    let mut x = from.x.clamp(0., WIDTH as f32 -1.);
+                    while x <= to.x {
+                        let mut  y_ = speed*(x-from.x)+from.y;
+                        let mut x_ = x;
+                        if x_inverted {x_ = 2.*from.x-x_;}
+                        if y_inverted {y_ = 2.*from.y-y_;}
+                        y_ = y_.clamp(0., HEIGHT as f32 - 1. - offset.y);
+                        x_ = x_.clamp(0., WIDTH as f32 - 1. - offset.x);
+                        game.get_field_mut()[((x_+offset.x).round() as usize, (y_+offset.y).round() as usize)] = true;
+                        x += 1.;
+                    };
+                }
             }else{
                 let speed = (to.x-from.x)/(to.y-from.y);
                 let mut y = from.y.clamp(0., HEIGHT as f32 - 1.);
-                while y <= to.y {
-                    let mut x_ = speed*(y-from.y)+from.x;
-                    let mut y_ = y;
-                    if speed.is_nan() {
-                        game.get_field_mut()[((to.x + offset.x) as usize, (to.y + offset.y) as usize)] = true;
-                        break;
-                    }
-                    if x_inverted {x_ = 2.*from.x-x_;}
-                    if y_inverted {y_ = 2.*from.y-y_;}
-                    x_ = x_.clamp(0., WIDTH as f32 - 1. - offset.x);
-                    y_ = y_.clamp(0., HEIGHT as f32 - 1. - offset.y);
-                    game.get_field_mut()[((x_+offset.x)as usize, (y_+offset.y)as usize)] = true;
-                    y += 1.;
-                };
+                if speed.is_nan() {
+                    game.get_field_mut()[((to.x + offset.x).round() as usize, (to.y + offset.y).round() as usize)] = true;
+                }else{
+                    while y <= to.y {
+                        let mut x_ = speed*(y-from.y)+from.x;
+                        let mut y_ = y;
+                        if x_inverted {x_ = 2.*from.x-x_;}
+                        if y_inverted {y_ = 2.*from.y-y_;}
+                        x_ = x_.clamp(0., WIDTH as f32 - 1. - offset.x);
+                        y_ = y_.clamp(0., HEIGHT as f32 - 1. - offset.y);
+
+                        game.get_field_mut()[((x_+offset.x).round() as usize, (y_+offset.y).round() as usize)] = true;
+                        y += 1.;
+                    };
+                }
             }
         }
 
